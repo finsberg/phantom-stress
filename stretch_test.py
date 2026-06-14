@@ -93,6 +93,8 @@ def main(mu=10.0, L0=10.0, force_max=10.0, num_steps=15):
         engine="BP4",
         mesh_policy=dolfinx.io.VTXMeshPolicy.reuse,
     )
+    figdir = Path("figures_stretch_test")
+    figdir.mkdir(exist_ok=True)
     plotter = pyvista.Plotter(off_screen=True)
     topology_u, cell_types_u, geometry_u = dolfinx.plot.vtk_mesh(
         problem.u.function_space
@@ -135,7 +137,7 @@ def main(mu=10.0, L0=10.0, force_max=10.0, num_steps=15):
         warped["u"] = magnitude.x.array
 
         plotter.add_text(f"F = {f:.2f} kPa", name="text")
-        plotter.screenshot(outdir / f"stretch_test_{f:.0f}.png")
+        plotter.screenshot(figdir / f"stretch_test_{f:.0f}.png")
         plotter.remove_actor("text")
         # exit()
         # Compute average displacement on the right face
@@ -166,7 +168,7 @@ def main(mu=10.0, L0=10.0, force_max=10.0, num_steps=15):
         ax.legend()
 
         # Save plot
-        plot_filename = outdir / "force_stretch_neohookean.png"
+        plot_filename = figdir / "force_stretch_neohookean.png"
         fig.savefig(plot_filename, dpi=150)
         print(f"\nSaved plot to {plot_filename}")
 

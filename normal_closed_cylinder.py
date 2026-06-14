@@ -194,7 +194,7 @@ def run(geo, outdir: Path):
             )
 
 
-def postprocess(comm, outdir):
+def postprocess(comm, outdir, figdir):
     mesh = io4dolfinx.read_mesh(filename=outdir / "checkpoint.bp", comm=comm)
     U_space = dolfinx.fem.functionspace(mesh, ("CG", 2, (3,)))
     u = dolfinx.fem.Function(U_space, name="Displacement")
@@ -281,8 +281,8 @@ def postprocess(comm, outdir):
         comm=comm, filename=outdir / "checkpoint.bp", function_name="u"
     )
 
-    figdir = outdir / "screenshots"
-    figdir.mkdir(exist_ok=True)
+    screenshotdir = figdir / "screenshots"
+    screenshotdir.mkdir(exist_ok=True)
 
     for pressure in pressures:
         io4dolfinx.read_function(
@@ -322,7 +322,9 @@ def postprocess(comm, outdir):
             plotter.add_text(f"p = {pressure:.2f} kPa", name="text")
             for widget in plotter.widgets.plane_widgets:
                 widget.SetEnabled(False)
-            plotter.screenshot(figdir / f"cylinder_{field_name}_{pressure:.0f}.png")
+            plotter.screenshot(
+                screenshotdir / f"cylinder_{field_name}_{pressure:.0f}.png"
+            )
             plotter.remove_actor("text")
             plotter.close()
 
@@ -365,7 +367,7 @@ def load_geo(comm, outdir: Path) -> cardiac_geometries.geometry.Geometry:
     return geo
 
 
-def plot_points(comm, outdir):
+def plot_points(comm, outdir, figdir):
     mesh = io4dolfinx.read_mesh(filename=outdir / "checkpoint.bp", comm=comm)
     U_space = dolfinx.fem.functionspace(mesh, ("CG", 2, (3,)))
 
@@ -394,10 +396,10 @@ def plot_points(comm, outdir):
     plotter.show_bounds()
     for widget in plotter.widgets.plane_widgets:
         widget.SetEnabled(False)
-    plotter.screenshot(outdir / "cylinder_points.png")
+    plotter.screenshot(figdir / "cylinder_points.png")
 
 
-def plot_point_displacement(comm, outdir):
+def plot_point_displacement(comm, outdir, figdir):
     mesh = io4dolfinx.read_mesh(filename=outdir / "checkpoint.bp", comm=comm)
     U_space = dolfinx.fem.functionspace(mesh, ("CG", 2, (3,)))
     u = dolfinx.fem.Function(U_space, name="Displacement")
@@ -498,11 +500,11 @@ def plot_point_displacement(comm, outdir):
     fig.tight_layout()
 
     # Save the plot to your output directory
-    plot_path = outdir / "surface_distances.png"
+    plot_path = figdir / "surface_distances.png"
     fig.savefig(plot_path, dpi=300)
 
 
-def plot_point_stress_strain(comm, outdir):
+def plot_point_stress_strain(comm, outdir, figdir):
     mesh = io4dolfinx.read_mesh(filename=outdir / "checkpoint.bp", comm=comm)
     W = dolfinx.fem.functionspace(mesh, ("CG", 2))
     f = dolfinx.fem.Function(W, name="Displacement")
@@ -557,7 +559,7 @@ def plot_point_stress_strain(comm, outdir):
         ax.grid(True, linestyle="--", alpha=0.7)
         ax.legend(fontsize=11)
         fig.tight_layout()
-        plot_path = outdir / f"{field_name.replace(' ', '_').lower()}_points.png"
+        plot_path = figdir / f"{field_name.replace(' ', '_').lower()}_points.png"
         fig.savefig(plot_path, dpi=300)
 
 
@@ -565,12 +567,14 @@ def main():
     outdir = Path("results_normal_closed_cylinder")
     outdir.mkdir(exist_ok=True)
     comm = MPI.COMM_WORLD
-    geo = load_geo(comm, outdir)
-    run(geo, outdir)
-    postprocess(comm, outdir)
-    plot_points(comm, outdir)
-    plot_point_displacement(comm, outdir)
-    plot_point_stress_strain(comm, outdir)
+    # geo = load_geo(comm, outdir)
+    # run(geo, outdir)
+    figdir = Path("figures_normal_closed_cylinder")
+    figdir.mkdir(exist_ok=True)
+    postprocess(comm, outdir, figdir)
+    plot_points(comm, outdir, figdir)
+    plot_point_displacement(comm, outdir, figdir)
+    plot_point_stress_strain(comm, outdir, figdir)
 
 
 if __name__ == "__main__":
