@@ -562,14 +562,14 @@ def plot_point_stress_strain(comm, outdir):
 
 
 def main():
-    outdir = Path("results_normal_cylinder")
+    outdir = Path("results_normal_closed_cylinder")
     outdir.mkdir(exist_ok=True)
     comm = MPI.COMM_WORLD
-    # geo = load_geo(comm, outdir)
-    # run(geo, outdir)
-    # postprocess(comm, outdir)
-    # plot_points(comm, outdir)
-    # plot_point_displacement(comm, outdir)
+    geo = load_geo(comm, outdir)
+    run(geo, outdir)
+    postprocess(comm, outdir)
+    plot_points(comm, outdir)
+    plot_point_displacement(comm, outdir)
     plot_point_stress_strain(comm, outdir)
 
 
