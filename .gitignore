@@ -1,3 +1,10 @@
+*.bp
+*.h5
+*.xdmf
+*.png
+*.avi
+*.json
+*.msh
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
