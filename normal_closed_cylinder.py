@@ -14,21 +14,21 @@ import io4dolfinx
 import pyvista
 
 
-r_inner = 0.025
-r_outer = 0.035
-floor_thickness = 0.01
-roof_thickness = 0.01
-height = 0.08
+r_inner = 0.022
+r_outer = 0.032
+floor_thickness = 0.008
+roof_thickness = 0.008
+height = 0.106
 
 
 def run(geo, outdir: Path):
-    target_pressure = 3_000  # Pa
+    target_pressure = 56 * 133.322  # Convert mmHg to Pa
 
     geometry = pulse.HeartGeometry.from_cardiac_geometries(
         geo, metadata={"quadrature_degree": 6}
     )
 
-    mu = pulse.Variable(dolfinx.fem.Constant(geometry.mesh, 10.0), "kPa")
+    mu = pulse.Variable(dolfinx.fem.Constant(geometry.mesh, 23.0), "kPa")
     material = pulse.NeoHookean(mu=mu)
     print(material)
 
@@ -567,8 +567,8 @@ def main():
     outdir = Path("results_normal_closed_cylinder")
     outdir.mkdir(exist_ok=True)
     comm = MPI.COMM_WORLD
-    # geo = load_geo(comm, outdir)
-    # run(geo, outdir)
+    geo = load_geo(comm, outdir)
+    run(geo, outdir)
     figdir = Path("figures_normal_closed_cylinder")
     figdir.mkdir(exist_ok=True)
     postprocess(comm, outdir, figdir)
