@@ -22,7 +22,7 @@ height = 0.106
 
 
 def run(geo, outdir: Path):
-    target_pressure = 56 * 133.322  # Convert mmHg to Pa
+    target_pressure = 53 * 133.322  # Convert mmHg to Pa
 
     geometry = pulse.HeartGeometry.from_cardiac_geometries(
         geo, metadata={"quadrature_degree": 6}
@@ -224,15 +224,15 @@ def postprocess(comm, outdir, figdir):
     }
 
     clims = {
-        "Circumferential Strain": (0.0, 0.6),
-        "Circumferential Stress": (-2500, 15_000),
-        "Circumferential Deviatoric Stress": (-6000, 10_000),
-        "Longitudinal Strain": (-0.3, 1.5),
-        "Longitudinal Stress": (-10_000, 20_000),
+        "Circumferential Strain": (0.0, 0.7),
+        "Circumferential Stress": (-2500, 30_000),
+        "Circumferential Deviatoric Stress": (-6000, 20_000),
+        "Longitudinal Strain": (-0.3, 1.0),
+        "Longitudinal Stress": (-15_000, 25_000),
         "Longitudinal Deviatoric Stress": (-15_000, 20_000),
-        "Radial Strain": (-0.3, 1.0),
-        "Radial Stress": (-6000, 20_000),
-        "Radial Deviatoric Stress": (-10_000, 15_000),
+        "Radial Strain": (-0.6, 1.0),
+        "Radial Stress": (-15_000, 20_000),
+        "Radial Deviatoric Stress": (-20_000, 15_000),
     }
 
     shutil.rmtree(outdir / "displacement.bp", ignore_errors=True)
@@ -319,7 +319,7 @@ def postprocess(comm, outdir, figdir):
                 (0.0, 0.0, 0.04000000189989805),
                 (0.0, 0.0, 1.0),
             ]
-            plotter.add_text(f"p = {pressure:.2f} kPa", name="text")
+            plotter.add_text(f"p = {pressure:.2f} Pa", name="text")
             for widget in plotter.widgets.plane_widgets:
                 widget.SetEnabled(False)
             plotter.screenshot(
@@ -554,7 +554,11 @@ def plot_point_stress_strain(comm, outdir, figdir):
                 label=label,
             )
         ax.set_xlabel("Pressure", fontsize=12)
-        ax.set_ylabel(field_name, fontsize=12)
+        if "stress" in field_name.lower():
+            unit = "Pa"
+        else:
+            unit = "-"
+        ax.set_ylabel(f"{field_name} ({unit})", fontsize=12)
         ax.set_title(f"{field_name} at Selected Points", fontsize=14)
         ax.grid(True, linestyle="--", alpha=0.7)
         ax.legend(fontsize=11)
@@ -567,8 +571,8 @@ def main():
     outdir = Path("results_normal_closed_cylinder")
     outdir.mkdir(exist_ok=True)
     comm = MPI.COMM_WORLD
-    geo = load_geo(comm, outdir)
-    run(geo, outdir)
+    # geo = load_geo(comm, outdir)
+    # run(geo, outdir)
     figdir = Path("figures_normal_closed_cylinder")
     figdir.mkdir(exist_ok=True)
     postprocess(comm, outdir, figdir)
