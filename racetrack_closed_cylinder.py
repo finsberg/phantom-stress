@@ -730,12 +730,12 @@ def main():
     outdir = Path("results_racetrack_closed_cylinder")
     outdir.mkdir(exist_ok=True)
     comm = MPI.COMM_WORLD
-    # geo = load_geo(comm, outdir)
-    # run(geo, outdir)
-    # exit()
+    geo = load_geo(comm, outdir)
+    run(geo, outdir)
+
     figdir = Path("figures_racetrack_closed_cylinder")
     figdir.mkdir(exist_ok=True)
-    # postprocess(comm, outdir, figdir)
+    postprocess(comm, outdir, figdir)
     plot_points(comm, outdir, figdir)
     plot_point_displacement(comm, outdir, figdir)
     plot_point_stress_strain(comm, outdir, figdir)

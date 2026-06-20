@@ -571,8 +571,8 @@ def main():
     outdir = Path("results_normal_closed_cylinder")
     outdir.mkdir(exist_ok=True)
     comm = MPI.COMM_WORLD
-    # geo = load_geo(comm, outdir)
-    # run(geo, outdir)
+    geo = load_geo(comm, outdir)
+    run(geo, outdir)
     figdir = Path("figures_normal_closed_cylinder")
     figdir.mkdir(exist_ok=True)
     postprocess(comm, outdir, figdir)
