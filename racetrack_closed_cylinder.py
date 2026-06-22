@@ -286,6 +286,194 @@ def postprocess(comm, outdir, figdir):
         comm=comm, filename=outdir / "checkpoint.bp", function_name="u"
     )
 
+    screenshotdir = figdir / "screenshots_new"
+    screenshotdir.mkdir(exist_ok=True)
+
+    for pressure in pressures:
+        io4dolfinx.read_function(
+            u=u, time=pressure, filename=outdir / "checkpoint.bp", name="u"
+        )
+        io4dolfinx.read_function(
+            u=p, time=pressure, filename=outdir / "checkpoint.bp", name="p"
+        )
+        for field_name, func in fields.items():
+            io4dolfinx.read_function(
+                u=func,
+                time=pressure,
+                filename=outdir / "checkpoint.bp",
+                name=field_name,
+            )
+
+            # Re-use mesh data for all subplots to optimize rendering
+            topology_u, cell_types_u, geometry_u = dolfinx.plot.vtk_mesh(
+                u.function_space
+            )
+            grid_u = pyvista.UnstructuredGrid(topology_u, cell_types_u, geometry_u)
+            grid_u["u"] = u.x.array.reshape((geometry_u.shape[0], 3))
+            grid_u[f"{field_name}"] = func.x.array
+            grid_u.set_active_scalars(f"{field_name}")
+            warped_u = grid_u.warp_by_vector("u", factor=1.0)
+
+            # Initialize a 1x3 subplot layout, adjusting window size for aspect ratio
+            plotter = pyvista.Plotter(
+                shape=(1, 3), off_screen=True, window_size=[2400, 800]
+            )
+
+            # --- SUBPLOT 1: Side View ---
+            plotter.subplot(0, 0)
+            plotter.add_mesh_clip_plane(
+                warped_u,
+                show_edges=False,
+                clim=clims[field_name],
+            )
+            plotter.camera_position = [
+                (-0.3209859019341666, 0.0, 0.04000000189989805),
+                (0.0, 0.0, 0.04000000189989805),
+                (0.0, 0.0, 1.0),
+            ]
+            plotter.add_text(
+                f"p = {pressure:.2f} Pa (Side)", font_size=10, name="text_1"
+            )
+            for widget in plotter.widgets.plane_widgets:
+                widget.SetEnabled(False)
+
+            # --- SUBPLOT 2: Top / Z-Normal View ---
+            plotter.subplot(0, 1)
+            plotter.add_mesh_clip_plane(
+                warped_u,
+                show_edges=False,
+                normal="z",
+                clim=clims[field_name],
+            )
+            plotter.camera_position = [
+                (0.0, 0.0, -0.2),
+                (0.0, 0.0, 0.0),
+                (0.0, 1.0, 0.0),
+            ]
+            plotter.add_text(
+                f"p = {pressure:.2f} Pa (Top)", font_size=10, name="text_2"
+            )
+            for widget in plotter.widgets.plane_widgets:
+                widget.SetEnabled(False)
+
+            # --- SUBPLOT 3: Front / Y-Normal View ---
+            plotter.subplot(0, 2)
+            plotter.add_mesh_clip_plane(
+                warped_u,
+                show_edges=False,
+                normal="y",
+                clim=clims[field_name],
+            )
+            plotter.camera_position = [
+                (0.0, -0.3, 0.05),
+                (0.0, 0.0, 0.05),
+                (0.0, 0.0, 1.0),
+            ]
+            plotter.add_text(
+                f"p = {pressure:.2f} Pa (Front)", font_size=10, name="text_3"
+            )
+            for widget in plotter.widgets.plane_widgets:
+                widget.SetEnabled(False)
+
+            # Take a single combined screenshot
+            plotter.screenshot(
+                screenshotdir / f"cylinder_views_{field_name}_{pressure:.0f}.png"
+            )
+            plotter.close()
+
+        vtx_u.write(pressure)
+        vtx_p.write(pressure)
+        vtx_strain.write(pressure)
+        vtx_stress.write(pressure)
+
+
+def postprocess_old(comm, outdir, figdir):
+    mesh = io4dolfinx.read_mesh(filename=outdir / "checkpoint.bp", comm=comm)
+    U_space = dolfinx.fem.functionspace(mesh, ("CG", 2, (3,)))
+    u = dolfinx.fem.Function(U_space, name="Displacement")
+    P_space = dolfinx.fem.functionspace(mesh, ("CG", 1))
+    p = dolfinx.fem.Function(P_space, name="Pressure")
+    W = dolfinx.fem.functionspace(mesh, ("CG", 2))
+    fields = {
+        "Circumferential Strain": dolfinx.fem.Function(
+            W, name="Circumferential Strain"
+        ),
+        "Circumferential Stress": dolfinx.fem.Function(
+            W, name="Circumferential Stress"
+        ),
+        "Circumferential Deviatoric Stress": dolfinx.fem.Function(
+            W, name="Circumferential Deviatoric Stress"
+        ),
+        "Longitudinal Strain": dolfinx.fem.Function(W, name="Longitudinal Strain"),
+        "Longitudinal Stress": dolfinx.fem.Function(W, name="Longitudinal Stress"),
+        "Longitudinal Deviatoric Stress": dolfinx.fem.Function(
+            W, name="Longitudinal Deviatoric Stress"
+        ),
+        "Radial Strain": dolfinx.fem.Function(W, name="Radial Strain"),
+        "Radial Stress": dolfinx.fem.Function(W, name="Radial Stress"),
+        "Radial Deviatoric Stress": dolfinx.fem.Function(
+            W, name="Radial Deviatoric Stress"
+        ),
+    }
+
+    clims = {
+        "Circumferential Strain": (0.0, 0.7),
+        "Circumferential Stress": (-2500, 30_000),
+        "Circumferential Deviatoric Stress": (-6000, 20_000),
+        "Longitudinal Strain": (-0.3, 1.0),
+        "Longitudinal Stress": (-15_000, 25_000),
+        "Longitudinal Deviatoric Stress": (-15_000, 20_000),
+        "Radial Strain": (-0.6, 1.0),
+        "Radial Stress": (-15_000, 20_000),
+        "Radial Deviatoric Stress": (-20_000, 15_000),
+    }
+
+    shutil.rmtree(outdir / "displacement.bp", ignore_errors=True)
+    vtx_u = dolfinx.io.VTXWriter(
+        comm,
+        outdir / "displacement.bp",
+        [u],
+        engine="BP4",
+        mesh_policy=dolfinx.io.VTXMeshPolicy.reuse,
+    )
+    shutil.rmtree(outdir / "pressure.bp", ignore_errors=True)
+    vtx_p = dolfinx.io.VTXWriter(
+        comm,
+        outdir / "pressure.bp",
+        [p],
+        engine="BP4",
+        mesh_policy=dolfinx.io.VTXMeshPolicy.reuse,
+    )
+    shutil.rmtree(outdir / "strain.bp", ignore_errors=True)
+    vtx_strain = dolfinx.io.VTXWriter(
+        comm,
+        outdir / "strain.bp",
+        [
+            fields["Circumferential Strain"],
+            fields["Longitudinal Strain"],
+            fields["Radial Strain"],
+        ],
+        engine="BP4",
+    )
+    shutil.rmtree(outdir / "stress.bp", ignore_errors=True)
+    vtx_stress = dolfinx.io.VTXWriter(
+        comm,
+        outdir / "stress.bp",
+        [
+            fields["Circumferential Stress"],
+            fields["Longitudinal Stress"],
+            fields["Radial Stress"],
+            fields["Circumferential Deviatoric Stress"],
+            fields["Longitudinal Deviatoric Stress"],
+            fields["Radial Deviatoric Stress"],
+        ],
+        engine="BP4",
+    )
+
+    pressures = io4dolfinx.read_timestamps(
+        comm=comm, filename=outdir / "checkpoint.bp", function_name="u"
+    )
+
     screenshotdir = figdir / "screenshots"
     screenshotdir.mkdir(exist_ok=True)
 
@@ -730,15 +918,15 @@ def main():
     outdir = Path("results_racetrack_closed_cylinder")
     outdir.mkdir(exist_ok=True)
     comm = MPI.COMM_WORLD
-    geo = load_geo(comm, outdir)
-    run(geo, outdir)
+    # geo = load_geo(comm, outdir)
+    # run(geo, outdir)
 
     figdir = Path("figures_racetrack_closed_cylinder")
     figdir.mkdir(exist_ok=True)
     postprocess(comm, outdir, figdir)
-    plot_points(comm, outdir, figdir)
-    plot_point_displacement(comm, outdir, figdir)
-    plot_point_stress_strain(comm, outdir, figdir)
+    # plot_points(comm, outdir, figdir)
+    # plot_point_displacement(comm, outdir, figdir)
+    # plot_point_stress_strain(comm, outdir, figdir)
 
 
 if __name__ == "__main__":
